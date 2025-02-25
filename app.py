@@ -87,7 +87,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///sqlite.db"
 app.config["SECRET_KEY"] = "your_strong_secret_key"
 app.config["JWT_SECRET_KEY"] = "your_strong_secret_key"
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 app.config["CORS_HEADERS"] = "Content-Type"
 # Folder Configuration
 app.config["UPLOAD_FOLDER"] = "./static/process/upload"

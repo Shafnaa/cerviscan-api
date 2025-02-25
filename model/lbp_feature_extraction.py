@@ -94,24 +94,25 @@ def get_lbp_features(path):
     lbp_image = lbp_implementation(path).flatten()
 
     # Mean
-    mean = np.mean(lbp_image)
+    # mean = np.mean(lbp_image)
 
     # Median
-    median = np.median(lbp_image)
+    # median = np.median(lbp_image)
 
     # Standard Deviation
     std = np.std(lbp_image)
-    n = len(lbp_image)
+    # n = len(lbp_image)
 
     # Kurtosis
-    squared_differences = (lbp_image - mean) ** 4
-    sum_of_squared_differences = np.sum(squared_differences)
-    kurtosis = (4 * sum_of_squared_differences) / (n * std ** 4) - 3
+    # squared_differences = (lbp_image - mean) ** 4
+    # sum_of_squared_differences = np.sum(squared_differences)
+    # kurtosis = (4 * sum_of_squared_differences) / (n * std ** 4) - 3
 
     # Skewness
-    skewness = (3 * (mean - median)) / std
+    # skewness = (3 * (mean - median)) / std
 
-    return [mean, median, std, kurtosis, skewness]
+    # return [mean, median, std, kurtosis, skewness]
+    return [std]
 
 
 def get_lbp_feature_names():
@@ -121,4 +122,5 @@ def get_lbp_feature_names():
     Returns:
         list: A list of feature names.
     """
-    return ['mean', 'median', 'std', 'kurtosis', 'skewness']
+    # return ['mean', 'median', 'std', 'kurtosis', 'skewness']
+    return ["std"]

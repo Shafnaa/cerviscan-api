@@ -173,10 +173,10 @@ def get_tamura_features(image, lbp='off'):
         img = lbp_implementation(image)
 
     tamura_features = [
-        coarseness(img, 5), 
+        # coarseness(img, 5), 
         contrast(img), 
-        directionality(img), 
-        roughness(coarseness(img, 5), contrast(img))
+        # directionality(img), 
+        # roughness(coarseness(img, 5), contrast(img))
     ]
     return tamura_features
 
@@ -201,4 +201,5 @@ def get_tamura_feature_names():
     Returns:
         list: A list of feature names ['Coarseness', 'Contrast', 'Directionality', 'Roughness'].
     """
-    return ['Coarseness', 'Contrast', 'Directionality', 'Roughness']
+    # return ['Coarseness', 'Contrast', 'Directionality', 'Roughness']
+    return ['Contrast']
