@@ -40,10 +40,10 @@ from flask import Flask
 from flask import jsonify
 from flask import request
 
-# from flask import render_template
-# from flask import redirect
-# from flask import flash
-# from flask import url_for
+from flask import render_template
+from flask import redirect
+from flask import flash
+from flask import url_for
 
 from flask_cors import CORS
 from flask_cors import cross_origin
@@ -428,22 +428,46 @@ def get_record(record_id):
 
 
 # # User login route
-# @app.route("/login", methods=["GET", "POST"])
-# def login():
-#     if request.method == "POST":
-#         username = request.form.get("username")
-#         password = request.form.get("password")
-#         user = Users.query.filter_by(username=username).first()
+@app.route("/login", methods=["GET", "POST"])
+def login_page():
+    if request.method == "POST":
+        try:
+            username = request.form.get("username")
+            password = request.form.get("password")
 
-#         if user and check_password_hash(user.password, password):
-#             login_user(user)
-#             next_page = request.args.get("next")
-#             flash("Login successful!", "success")
-#             return redirect(next_page) if next_page else redirect(url_for("index"))
-#         else:
-#             flash("Invalid username or password", "danger")
+            user = Users.query.filter_by(username=username).first()
 
-#     return render_template("login.html")
+            if not user or not check_password_hash(user.password, password):
+                flash("Invalid username or password", "danger")
+                return render_template("login.html")
+
+            access_token = create_access_token(identity=user.id)
+
+            response = jsonify(
+                message="Login successful",
+                data={"access_token": access_token},
+            )
+
+            response.status_code = 201
+
+            set_access_cookies(response, access_token)
+
+        except AttributeError:
+            flash("Provide a username and password", "danger")
+
+        # username = request.form.get("username")
+        # password = request.form.get("password")
+        # user = Users.query.filter_by(username=username).first()
+
+        # if user and check_password_hash(user.password, password):
+        #     login_user(user)
+        #     next_page = request.args.get("next")
+        #     flash("Login successful!", "success")
+        #     return redirect(next_page) if next_page else redirect(url_for("index"))
+        # else:
+        #     flash("Invalid username or password", "danger")
+
+    return render_template("login.html")
 
 
 # # User logout route
@@ -456,74 +480,63 @@ def get_record(record_id):
 
 
 # # Main application route for image processing
-# @app.route("/", methods=["GET", "POST"])
-# @jwt_required
-# def index():
-#     result = None
-#     if request.method == "POST":
-#         first_name = request.form["first_name"]
-#         last_name = request.form["last_name"]
-#         dob = request.form["dob"]
-#         file = request.files["image"]
+@app.route("/", methods=["GET", "POST"])
+@jwt_required
+def index():
+    result = None
+    user_id = get_jwt_identity()
 
-#         if file:
-#             # Generate UUID and use it as the filename
-#             unique_filename = f"{uuid.uuid4().hex}{os.path.splitext(file.filename)[1]}"
-#             original_path = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
-#             file.save(original_path)
+    if request.method == "POST":
+        try:
+            name = request.form.get("name")
+            dob = request.form.get("dob")
 
-#             gray_image = rgb_to_gray_converter(original_path)
-#             gray_path = os.path.join(
-#                 app.config["PROCESSED_FOLDER"], f"gray_{unique_filename}"
-#             )
-#             cv2.imwrite(gray_path, gray_image)
+            record_id = str(uuid.uuid4())
 
-#             mask_image = multiotsu_masking(gray_path)
-#             mask_path = os.path.join(
-#                 app.config["PROCESSED_FOLDER"], f"mask_{unique_filename}"
-#             )
-#             plt.imsave(mask_path, mask_image, cmap="gray")
+            while Records.query.filter_by(id=record_id).first():
+                record_id = str(uuid.uuid4())
 
-#             original_image = cv2.imread(original_path)
-#             segmented_image = get_segmented_image(original_image, mask_path)
-#             segmented_path = os.path.join(
-#                 app.config["PROCESSED_FOLDER"], f"segmented_{unique_filename}"
-#             )
-#             cv2.imwrite(segmented_path, segmented_image)
+            file = request.files.get("image")
+            filename = record_id + os.path.splitext(file.filename)[1]
+            original_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(original_path)
 
-#             image_features = get_cerviscan_features(segmented_path)
-#             model = pickle.load(open("./model/xgb_best", "rb"))
-#             prediction = model.predict(image_features)
+            if original_path:
+                gray_image = rgb_to_gray_converter(original_path)
+                gray_path = os.path.join(app.config["GRAY_FOLDER"], filename)
+                cv2.imwrite(gray_path, gray_image)
 
-#             for feature_name, value in image_features.iloc[0].items():
-#                 print(f"{feature_name} : {value}")
+                mask_image = multiotsu_masking(gray_path)
+                mask_path = os.path.join(app.config["MASK_FOLDER"], filename)
+                plt.imsave(mask_path, mask_image, cmap="gray")
 
-#             print(prediction)
-#             if prediction[0] == 0:
-#                 prediction = "normal"
-#             else:
-#                 prediction = "abnormal"
-#             print(prediction)
+                original_image = cv2.imread(original_path)
+                segmented_image = get_segmented_image(original_image, mask_path)
+                segmented_path = os.path.join(app.config["SEGMENTED_FOLDER"], filename)
+                cv2.imwrite(segmented_path, segmented_image)
 
-#             entry = History(
-#                 user_id=current_user.id,
-#                 name=f"{first_name} {last_name}",
-#                 dob=dob,
-#                 original=original_path,
-#                 gray=gray_path,
-#                 mask=mask_path,
-#                 segmented=segmented_path,
-#                 features=image_features,
-#                 prediction=prediction,
-#                 date=datetime.now(),
-#             )
-#             db.session.add(entry)
-#             db.session.commit()
+                image_features = get_cerviscan_features(segmented_path)
+                model = pickle.load(open("./model/xgb_best", "rb"))
+                prediction = model.predict(image_features)
 
-#             result = entry
+                entry = Records(
+                    id=record_id,
+                    user_id=user_id,
+                    name=name,
+                    dob=dob,
+                    prediction=bool(prediction[0]),
+                )
 
-#     user_history = History.query.filter_by(user_id=current_user.id).all()
-#     return render_template("index.html", result=result, history=user_history)
+                db.session.add(entry)
+                db.session.commit()
+
+                result = entry
+
+        except AttributeError:
+            flash("Provide a name, dob, and image", "danger")
+
+    user_history = Records.query.filter_by(user_id=user_id).all()
+    return render_template("index.html", result=result, history=user_history)
 
 
 # # Route to view user history
@@ -567,4 +580,4 @@ def get_record(record_id):
 
 if __name__ == "__main__":
     with app.app_context():
-        app.run(debug=True)
+        app.run(debug=True, host="0.0.0.0", port=8000)
