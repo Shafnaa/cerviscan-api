@@ -1,102 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Login</title>
-        <link
-            rel="stylesheet"
-            href="{{ url_for('static', filename='styles/styles_.css') }}"
-        />
-    </head>
-    <body>
-        <div class="page-container">
-            <div class="section-container login-card">
-                <div class="identity">
-                    <img src="../static/assets/logo-unsoed-baru.png" />
-                    <div>
-                        <h1>CerviScan</h1>
-                        <p>cervical cancer detection</p>
-                    </div>
-                </div>
-                <form
-                    onsubmit="handleLogin(event)"
-                >
-                    <h1>Login</h1>
-
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" name="username" required />
-
-                    <label for="password">Password:</label>
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        required
-                    />
-
-                    <button type="submit">Login</button>
-
-                    <div id="error-message" class="error" style="display: none"></div>
-
-                    {% with messages = get_flashed_messages() %} {% if messages
-                    %}
-                    <div class="error">{{ messages[0] }}</div>
-                    {% endif %} {% endwith %}
-
-                    <p>
-                        Don't have an account?
-                        <a href="/register">Sign up here</a>.
-                    </p>
-                </form>
-                <script>
-                    async function handleLogin(event) {
-                        event.preventDefault();
-                        const form = event.target;
-                        const formData = new FormData(form);
-                        const errorMessageDiv =
-                            document.getElementById("error-message");
-
-                        try {
-                            const response = await fetch(form.action, {
-                                method: form.method,
-                                body: formData,
-                            });
-
-                            if (response.ok) {
-                                // Assuming server redirects on success, the browser will follow it.
-                                // If the server returns JSON, we handle redirect here.
-                                const data = await response.json();
-
-                                if (data.data.access_token) {
-                                    localStorage.setItem(
-                                        "access_token",
-                                        data.data.access_token
-                                    );
-                                }
-
-                                if (data.data.redirect_url) {
-                                    window.location.href = data.data.redirect_url;
-                                } else {
-                                    // Fallback for successful login without redirect info
-                                    window.location.href = "/"; // Or your home page URL
-                                }
-                            } else {
-                                const errorData = await response.json();
-                                errorMessageDiv.textContent =
-                                    errorData.message ||
-                                    "Invalid username or password.";
-                                errorMessageDiv.style.display = "block";
-                            }
-                        } catch (error) {
-                            errorMessageDiv.textContent =
-                                "An error occurred. Please try again.";
-                            errorMessageDiv.style.display = "block";
-                        }
-                    }
-                </script>
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles/styles_.css') }}"
+    />
+  </head>
+  <body>
+    <div class="page-container">
+      <div class="section-container login-card">
+        <div class="identity">
+          <img src="../static/assets/logo-unsoed-baru.png" />
+          <div>
+            <h1>CerviScan</h1>
+            <p>cervical cancer detection</p>
+          </div>
         </div>
-    </body>
+        <form onsubmit="handleLogin(event)">
+          <h1>Login</h1>
+
+          <label for="username">Username:</label>
+          <input type="text" id="username" name="username" required />
+
+          <label for="password">Password:</label>
+          <input type="password" id="password" name="password" required />
+
+          <button type="submit">Login</button>
+
+          <div id="error-message" class="error" style="display: none"></div>
+
+          {% with messages = get_flashed_messages() %} {% if messages %}
+          <div class="error">{{ messages[0] }}</div>
+          {% endif %} {% endwith %}
+
+          <p>
+            Don't have an account?
+            <a href="/register">Sign up here</a>.
+          </p>
+        </form>
+        <script>
+          async function handleLogin(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+
+            const errorMessageDiv = document.getElementById("error-message");
+
+            try {
+              const response = await fetch("/api/auth/login", {
+                method: "POST",
+                body: formData,
+              });
+
+              const result = await response.json();
+
+              if (response.ok) {
+                // Assuming server redirects on success, the browser will follow it.
+                // If the server returns JSON, we handle redirect here.
+
+                if (result.data.access_token) {
+                  localStorage.setItem(
+                    "access_token",
+                    result.data.access_token
+                  );
+                }
+
+                if (result.data.redirect_url) {
+                  window.location.href = result.data.redirect_url;
+                } else {
+                  // Fallback for successful login without redirect info
+                  window.location.href = "/"; // Or your home page URL
+                }
+              } else {
+                errorMessageDiv.textContent =
+                  result.message || "Invalid username or password.";
+                errorMessageDiv.style.display = "block";
+              }
+            } catch (error) {
+              errorMessageDiv.textContent =
+                "An error occurred. Please try again.";
+              errorMessageDiv.style.display = "block";
+            }
+          }
+        </script>
+      </div>
+    </div>
+  </body>
 </html>

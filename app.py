@@ -320,13 +320,8 @@ def api_create_record():
                         "deg0": [
                             "SRE",
                             "LRE",
-                            "GLN",
                             "RLN",
-                            "RP",
-                            "LGLRE",
-                            "HGL",
                             "SRLGLE",
-                            "SRHGLE",
                             "LRHGLE",
                         ],
                         "deg45": [
