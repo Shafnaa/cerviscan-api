@@ -26,7 +26,7 @@
                         <p>cervical cancer detection</p>
                     </div>
                 </div>
-                <form action="/register" method="POST">
+                <form id="registerForm"></form>
                     <h1>Create an Account</h1>
                     <label for="username">Username:</label>
                     <input type="text" id="username" name="username" required />
@@ -49,8 +49,9 @@
 
                     <button type="submit">Register</button>
 
-                    {% with messages = get_flashed_messages() %} {% if messages
-                    %}
+                    <div id="errorMessage" class="error" style="display: none;"></div>
+                    
+                    {% with messages = get_flashed_messages() %} {% if messages %}
                     <div class="error">{{ messages[0] }}</div>
                     {% endif %} {% endwith %}
 
@@ -59,6 +60,35 @@
                         <a href="/login">Login here</a>.
                     </p>
                 </form>
+                <script>
+                    document.getElementById('registerForm').addEventListener('submit', async (event) => {
+                        event.preventDefault(); // Prevent default form submission
+                        
+                        const form = event.target;
+                        const formData = new FormData(form);
+                        const errorDiv = document.getElementById('errorMessage');
+
+                        try {
+                            const response = await fetch('/api/auth/register', {
+                                method: 'POST',
+                                body: formData,
+                            });
+
+                            if (response.ok) {
+                                // On success, redirect to the home page
+                                window.location.href = '/'; 
+                            } else {
+                                // On failure, display the error message from the server
+                                const errorData = await response.json();
+                                errorDiv.textContent = errorData.message || 'Registration failed.';
+                                errorDiv.style.display = 'block';
+                            }
+                        } catch (error) {
+                            errorDiv.textContent = 'An unexpected error occurred.';
+                            errorDiv.style.display = 'block';
+                        }
+                    });
+                </script>
             </div>
         </div>
     </body>

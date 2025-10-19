@@ -74,7 +74,7 @@ from PIL import Image
 from model.rgb_to_gray import rgb_to_gray_converter
 from model.multiotsu_segmentation import multiotsu_masking
 from model.bitwise_operation import get_segmented_image
-from model.cerviscan_feature_extraction import get_cerviscan_features
+from model.single_image_extractor import SingleImageFeatureExtractor
 
 app = Flask(__name__)
 CORS(
@@ -89,7 +89,7 @@ app.config["JWT_SECRET_KEY"] = "your_strong_secret_key"
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 app.config["CORS_HEADERS"] = "Content-Type"
-# Folder Configuration
+# Folder Configurationapa itu cagr
 app.config["UPLOAD_FOLDER"] = "./static/process/upload"
 app.config["GRAY_FOLDER"] = "./static/process/gray"
 app.config["MASK_FOLDER"] = "./static/process/mask"
@@ -156,7 +156,7 @@ def refresh_expiring_jwts(response):
 @app.route("/api/auth/logout", methods=["POST"])
 @cross_origin()
 @jwt_required()
-def logout():
+def api_logout():
     response = jsonify(message="Logout successful")
     unset_jwt_cookies(response)
     return response
@@ -164,7 +164,7 @@ def logout():
 
 @app.route("/api/auth/login", methods=["POST"])
 @cross_origin()
-def login():
+def api_login():
     try:
         username = request.form.get("username")
         password = request.form.get("password")
@@ -198,7 +198,7 @@ def login():
 
 @app.route("/api/auth/register", methods=["POST"])
 @cross_origin()
-def register():
+def api_register():
     try:
         username = request.form.get("username")
         password = request.form.get("password")
@@ -246,7 +246,7 @@ def register():
 # Record routes
 @app.route("/api/record", methods=["GET"])
 @jwt_required()
-def list_records():
+def api_list_records():
     user_id = get_jwt_identity()
 
     return (
@@ -269,7 +269,7 @@ def list_records():
 
 @app.route("/api/record/create", methods=["POST"])
 @jwt_required()
-def create_record():
+def api_create_record():
     try:
         name = request.form.get("name")
         dob = request.form.get("dob")
@@ -307,7 +307,50 @@ def create_record():
             segmented_path = os.path.join(app.config["SEGMENTED_FOLDER"], filename)
             cv2.imwrite(segmented_path, segmented_image)
 
-            image_features = get_cerviscan_features(segmented_path)
+            extractor = SingleImageFeatureExtractor(
+                color_moment_features={
+                    "YUV": {
+                        "y": ["mean", "std", "skew"],
+                        "u": ["mean", "std", "skew"],
+                        "v": ["mean", "std"],
+                    }
+                },
+                texture_features={
+                    "GLRLM": {
+                        "deg0": [
+                            "SRE",
+                            "LRE",
+                            "GLN",
+                            "RLN",
+                            "RP",
+                            "LGLRE",
+                            "HGL",
+                            "SRLGLE",
+                            "SRHGLE",
+                            "LRHGLE",
+                        ],
+                        "deg45": [
+                            "SRE",
+                            "LRE",
+                            "GLN",
+                            "HGL",
+                        ],
+                        "deg90": [
+                            "SRE",
+                            "LRE",
+                            "LGLRE",
+                        ],
+                        "deg135": [
+                            "LRE",
+                        ],
+                    },
+                    "TAMURA": ["coarseness", "contrast", "directionality"],
+                    "LBP": ["mean", "std"],
+                },
+            )
+
+            image_features = extractor.extract_features(segmented_path)
+
             model = pickle.load(open("./model/xgb_best", "rb"))
             prediction = model.predict(image_features)
 
@@ -336,10 +379,9 @@ def create_record():
         return jsonify(message="Provide a name, dob, and image in form data"), 400
 
 
-@app.route("/api/record/delete", methods=["DELETE"])
+@app.route("/api/record/<record_id>", methods=["DELETE"])
 @jwt_required()
-def delete_record():
-    record_id = request.form.get("record_id")
+def api_delete_record(record_id):
     user_id = get_jwt_identity()
 
     record = Records.query.filter_by(id=record_id, user_id=user_id).first()
@@ -362,7 +404,7 @@ def delete_record():
 
 @app.route("/api/record/<record_id>", methods=["GET"])
 @jwt_required()
-def get_record(record_id):
+def api_get_record(record_id):
     user_id = get_jwt_identity()
 
     record = Records.query.filter_by(id=record_id, user_id=user_id).first()
@@ -384,198 +426,84 @@ def get_record(record_id):
     return jsonify(message="Record not found"), 404
 
 
-# Frontend routes
-# @app.route("/login", methods=["GET"])
-# def login_page():
-#     if request.cookies.get("access_token_cookie"):
-#         return redirect("/dashboard")
-#     return render_template("login.html")
-
-
-# @app.route("/register", methods=["GET"])
-# def register_page():
-#     if request.cookies.get("access_token_cookie"):
-#         return redirect("/dashboard")
-#     return render_template("register.html")
-
-
-# User registration route
-# @app.route("/register", methods=["GET", "POST"])
-# def register():
-#     if request.method == "POST":
-#         username = request.form.get("username")
-#         password = request.form.get("password")
-#         password_confirm = request.form.get("password_confirm")
-
-#         if not username or not password:
-#             flash("Username and password cannot be empty", "danger")
-#             return render_template("register.html")
-#         if password != password_confirm:
-#             flash("Passwords do not match", "danger")
-#             return render_template("register.html")
-#         if Users.query.filter_by(username=username).first():
-#             flash("Username already exists", "danger")
-#             return render_template("register.html")
-
-#         hashed_password = generate_password_hash(password)
-#         user = Users(username=username, password=hashed_password)
-#         db.session.add(user)
-#         db.session.commit()
-#         flash("Registration successful! Please log in.", "success")
-#         return redirect(url_for("login"))
-
-#     return render_template("register.html")
-
-
 # # User login route
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login", methods=["GET"])
 def login_page():
-    if request.method == "POST":
-        try:
-            username = request.form.get("username")
-            password = request.form.get("password")
-
-            user = Users.query.filter_by(username=username).first()
-
-            if not user or not check_password_hash(user.password, password):
-                flash("Invalid username or password", "danger")
-                return render_template("login.html")
-
-            access_token = create_access_token(identity=user.id)
-
-            response = jsonify(
-                message="Login successful",
-                data={"access_token": access_token},
-            )
-
-            response.status_code = 201
-
-            set_access_cookies(response, access_token)
-
-        except AttributeError:
-            flash("Provide a username and password", "danger")
-
-        # username = request.form.get("username")
-        # password = request.form.get("password")
-        # user = Users.query.filter_by(username=username).first()
-
-        # if user and check_password_hash(user.password, password):
-        #     login_user(user)
-        #     next_page = request.args.get("next")
-        #     flash("Login successful!", "success")
-        #     return redirect(next_page) if next_page else redirect(url_for("index"))
-        # else:
-        #     flash("Invalid username or password", "danger")
-
     return render_template("login.html")
 
 
+# # User registration route
+@app.route("/register", methods=["GET"])
+def register_page():
+    return render_template("register.html")
+
+
 # # User logout route
-# @app.route("/logout")
-# @jwt_required
-# def logout():
-#     logout_user()
-#     flash("You have been logged out.", "info")
-#     return redirect(url_for("login"))
+@app.route("/logout", methods=["GET"])
+@jwt_required()
+def logout():
+    response = redirect(url_for("login_page"))
+
+    unset_jwt_cookies(response)
+
+    return response
 
 
 # # Main application route for image processing
-@app.route("/", methods=["GET", "POST"])
-@jwt_required
+@app.route("/", methods=["GET"])
+@jwt_required(optional=True)
 def index():
-    result = None
     user_id = get_jwt_identity()
 
-    if request.method == "POST":
-        try:
-            name = request.form.get("name")
-            dob = request.form.get("dob")
+    if not user_id:
+        return redirect(url_for("login_page"))
 
-            record_id = str(uuid.uuid4())
-
-            while Records.query.filter_by(id=record_id).first():
-                record_id = str(uuid.uuid4())
-
-            file = request.files.get("image")
-            filename = record_id + os.path.splitext(file.filename)[1]
-            original_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            file.save(original_path)
-
-            if original_path:
-                gray_image = rgb_to_gray_converter(original_path)
-                gray_path = os.path.join(app.config["GRAY_FOLDER"], filename)
-                cv2.imwrite(gray_path, gray_image)
-
-                mask_image = multiotsu_masking(gray_path)
-                mask_path = os.path.join(app.config["MASK_FOLDER"], filename)
-                plt.imsave(mask_path, mask_image, cmap="gray")
-
-                original_image = cv2.imread(original_path)
-                segmented_image = get_segmented_image(original_image, mask_path)
-                segmented_path = os.path.join(app.config["SEGMENTED_FOLDER"], filename)
-                cv2.imwrite(segmented_path, segmented_image)
-
-                image_features = get_cerviscan_features(segmented_path)
-                model = pickle.load(open("./model/xgb_best", "rb"))
-                prediction = model.predict(image_features)
-
-                entry = Records(
-                    id=record_id,
-                    user_id=user_id,
-                    name=name,
-                    dob=dob,
-                    prediction=bool(prediction[0]),
-                )
-
-                db.session.add(entry)
-                db.session.commit()
-
-                result = entry
-
-        except AttributeError:
-            flash("Provide a name, dob, and image", "danger")
-
-    user_history = Records.query.filter_by(user_id=user_id).all()
-    return render_template("index.html", result=result, history=user_history)
+    return render_template("index.html")
 
 
 # # Route to view user history
-# @app.route("/history", methods=["GET"])
-# @jwt_required
-# def history_page():
-#     user_history = History.query.filter_by(user_id=current_user.id).all()
-#     return render_template("history.html", history=user_history)
+@app.route("/history", methods=["GET"])
+@jwt_required()
+def history_page():
+    user_id = get_jwt_identity()
+
+    user_history = Records.query.filter_by(user_id=user_id).all()
+    return render_template("history.html", history=user_history)
 
 
 # # Route to view detailed history entry
-# @app.route("/history/<int:id>", methods=["GET"])
-# @jwt_required
-# def history_detail(id):
-#     entry = History.query.get_or_404(id)
-#     if entry.user_id != current_user.id:
-#         flash("You are not authorized to view this entry", "danger")
-#         return redirect(url_for("history_page"))
-#     return render_template("detail.html", entry=entry)
+@app.route("/history/<id>", methods=["GET"])
+@jwt_required()
+def history_detail(id):
+    user_id = get_jwt_identity()
+
+    entry = Records.query.get_or_404(id)
+    if entry.user_id != user_id:
+        flash("You are not authorized to view this entry", "danger")
+        return redirect(url_for("history_page"))
+    return render_template("detail.html", entry=entry)
 
 
 # # Route to delete a history entry
-# @app.route("/delete/<int:id>", methods=["POST"])
-# @jwt_required
-# def delete_history(id):
-#     entry = History.query.get_or_404(id)
-#     if entry.user_id != current_user.id:
-#         flash("You are not authorized to delete this entry", "danger")
-#         return redirect(url_for("history_page"))
-#     db.session.delete(entry)
-#     db.session.commit()
-#     flash("History deleted successfully.", "success")
-#     return redirect(url_for("history_page"))
+@app.route("/delete/<id>", methods=["POST"])
+@jwt_required()
+def delete_history(id):
+    user_id = get_jwt_identity()
+
+    entry = Records.query.get_or_404(id)
+    if entry.user_id != user_id:
+        flash("You are not authorized to delete this entry", "danger")
+        return redirect(url_for("history_page"))
+    db.session.delete(entry)
+    db.session.commit()
+    flash("History deleted successfully.", "success")
+    return redirect(url_for("history_page"))
 
 
-# @app.route("/usage")
-# @jwt_required
-# def usage():
-#     return render_template("usage.html")
+@app.route("/usage")
+@jwt_required()
+def usage():
+    return render_template("usage.html")
 
 
 if __name__ == "__main__":

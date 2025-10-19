@@ -277,6 +277,10 @@ a.album-card {
     text-align: center;
 }
 
+.hidden {
+    display: none;
+}
+
 @media screen and (max-width: 768px) {
     .menu {
         display: none;
