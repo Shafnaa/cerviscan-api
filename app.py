@@ -283,6 +283,17 @@ def api_create_record():
 
         if "image" in request.files:
             file = request.files["image"]
+            image = Image.open(file.stream)
+            
+            # Resize image while maintaining aspect ratio
+            base_width = 512
+            w_percent = (base_width / float(image.size[0]))
+            h_size = int((float(image.size[1]) * float(w_percent)))
+            image = image.resize((base_width, h_size), Image.Resampling.LANCZOS)
+
+            # Convert to RGB if it has an alpha channel to save as JPG
+            if image.mode in ("RGBA", "P"):
+                image = image.convert("RGB")
             filename = record_id + os.path.splitext(file.filename)[1]
             original_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(original_path)
