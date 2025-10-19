@@ -26,7 +26,7 @@
                         <p>cervical cancer detection</p>
                     </div>
                 </div>
-                <form id="registerForm"></form>
+                <form onsubmit="handleRegister(event)">
                     <h1>Create an Account</h1>
                     <label for="username">Username:</label>
                     <input type="text" id="username" name="username" required />
@@ -61,33 +61,35 @@
                     </p>
                 </form>
                 <script>
-                    document.getElementById('registerForm').addEventListener('submit', async (event) => {
-                        event.preventDefault(); // Prevent default form submission
-                        
+                    async function handleRegister(event) {
+                        event.preventDefault();
                         const form = event.target;
                         const formData = new FormData(form);
-                        const errorDiv = document.getElementById('errorMessage');
+                        const errorMessageDiv =
+                            document.getElementById("errorMessage");
 
                         try {
-                            const response = await fetch('/api/auth/register', {
-                                method: 'POST',
+                            const response = await fetch("/api/auth/register", {
+                                method: "POST",
                                 body: formData,
                             });
 
+                            const result = await response.json();
+
                             if (response.ok) {
-                                // On success, redirect to the home page
-                                window.location.href = '/'; 
+                                // Registration successful, redirect to login page
+                                window.location.href = "/login";
                             } else {
-                                // On failure, display the error message from the server
-                                const errorData = await response.json();
-                                errorDiv.textContent = errorData.message || 'Registration failed.';
-                                errorDiv.style.display = 'block';
+                                // Display error message
+                                errorMessageDiv.style.display = "block";
+                                errorMessageDiv.textContent = result.message || "Registration failed.";
                             }
                         } catch (error) {
-                            errorDiv.textContent = 'An unexpected error occurred.';
-                            errorDiv.style.display = 'block';
+                            errorMessageDiv.style.display = "block";
+                            errorMessageDiv.textContent =
+                                "An error occurred. Please try again.";
                         }
-                    });
+                    }
                 </script>
             </div>
         </div>
